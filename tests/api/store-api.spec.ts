@@ -1,5 +1,6 @@
-import { expect, test } from "@playwright/test"
-import { StoreApi, StoreCart, StoreProduct } from "../../api/StoreApi"
+import { test } from "@playwright/test"
+import { StoreApi } from "../../api/StoreApi"
+import { expectEmptyCartResponse, expectProductsResponse } from "../../assertions/storeApiAssertions"
 import { getCurrencyForBaseUrl } from "../../test-data/market"
 
 /*
@@ -22,24 +23,7 @@ test.describe("Store API", () => {
     const currency = getCurrencyForBaseUrl(process.env.BASE_URL)
     const response = await storeApi.getProducts()
 
-    expect(response.status()).toBe(200)
-    expect(response.headers()["content-type"]).toContain("application/json")
-
-    const products = (await response.json()) as StoreProduct[]
-    expect(products.length).toBeGreaterThan(0)
-
-    for (const product of products) {
-      expect(product.id).toEqual(expect.any(Number))
-      expect(product.name).toEqual(expect.any(String))
-      expect(product.type).toEqual(expect.any(String))
-      expect(product.permalink).toMatch(/^https?:\/\//)
-      expect(product.prices.currency_code).toBe(currency.code)
-      expect(product.prices.currency_symbol).toBe(currency.symbol)
-      expect(product.is_purchasable).toEqual(expect.any(Boolean))
-      expect(product.is_in_stock).toEqual(expect.any(Boolean))
-      expect(product.add_to_cart.text).toEqual(expect.any(String))
-      expect(product.add_to_cart.url).toMatch(/^https?:\/\//)
-    }
+    await expectProductsResponse(response, currency)
   })
 
   /*
@@ -57,14 +41,6 @@ test.describe("Store API", () => {
     const currency = getCurrencyForBaseUrl(process.env.BASE_URL)
     const response = await storeApi.getCart()
 
-    expect(response.status()).toBe(200)
-    expect(response.headers()["content-type"]).toContain("application/json")
-
-    const cart = (await response.json()) as StoreCart
-    expect(cart.items).toEqual([])
-    expect(Number(cart.totals.total_items)).toBe(0)
-    expect(Number(cart.totals.total_price)).toBe(0)
-    expect(cart.totals.currency_code).toBe(currency.code)
-    expect(cart.totals.currency_symbol).toBe(currency.symbol)
+    await expectEmptyCartResponse(response, currency)
   })
 })
