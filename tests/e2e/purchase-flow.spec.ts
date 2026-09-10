@@ -16,7 +16,21 @@ import { HomePage } from "../../pages/HomePage"
 import { ProductPage } from "../../pages/ProductPage"
 import { purchaseFlow } from "../../test-data/purchaseFlow"
 
-test("valida o fluxo de compra até o checkout e registra a limitação de quantidade", async ({
+/*
+Feature: Validar fluxo de compra da EBAC Shop
+*/
+
+/*
+  Scenario: [E2E-PURCHASE-001] Avançar no fluxo de compra até o checkout
+    Given que a homepage e o produto simples estão acessíveis
+    When eu seleciono o produto e o adiciono ao carrinho
+    And acesso o carrinho e avanço para o checkout
+    Then o produto, preço e quantidade observada devem ser exibidos
+    And os meios de pagamento disponíveis devem ser apresentados
+    And a limitação de alteração de quantidade deve ser registrada
+*/
+
+test("[E2E-PURCHASE-001] Avançar no fluxo de compra até o checkout", async ({
   page,
 }) => {
   const homePage = new HomePage(page, purchaseFlow.product.id)
