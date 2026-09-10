@@ -1,0 +1,58 @@
+name: Nightly Flaky Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  repeat-e2e-api:
+    name: Repeat E2E + API suite to surface flaky tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      TEST_ENV: local
+      BASE_URL: ${{ vars.BASE_URL || 'http://lojaebac.ebaconline.art.br' }}
+      TEST_USER: ${{ secrets.TEST_USER }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # --repeat-each surfaces tests that pass most of the time but not
+      # always — the definition of flaky. --workers matches the local stress
+      # test that validated per-worker auth isolation (see README).
+      # forbidOnly/retries stay off here on purpose: a flaky test masked by
+      # a retry would defeat the point of this workflow.
+      - name: Run E2E and API tests repeated
+        run: npx playwright test --project=chromium-e2e --project=chromium-api --repeat-each=5 --workers=4 --retries=0
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-check-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload failure evidence (traces, videos, screenshots)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flaky-check-test-results
+          path: test-results/
+          retention-days: 14
