@@ -5,6 +5,7 @@
   "description": "Aarin - Playwright E2E tests for the EBAC Shop technical challenge",
   "scripts": {
     "test:e2e": "playwright test tests/e2e",
+    "test:api": "playwright test tests/api",
     "test:e2e:headed": "playwright test tests/e2e --headed",
     "test:e2e:debug": "playwright test tests/e2e --debug",
     "report": "playwright show-report"
