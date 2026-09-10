@@ -1,33 +1,54 @@
-import { Locator, Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test'
+
+export interface DiscountedProductCard {
+  card: Locator
+  name: Locator
+  originalPrice: Locator
+  salePrice: Locator
+  discountLabel: Locator
+  productLink: Locator
+}
 
 export class HomePage {
-  readonly page: Page;
-  readonly simpleProductDetails: Locator;
-  readonly simpleAddToCartLink: Locator;
+  readonly page: Page
+  readonly discountedProductCards: Locator
 
-  constructor(page: Page, productId: string) {
-    this.page = page;
-    this.simpleProductDetails = page.getByRole('link', { name: 'Leia mais' }).first();
-    this.simpleAddToCartLink = page.locator(`a.add_to_cart_button[href*="add-to-cart=${productId}"]`).first();
+  constructor(page: Page) {
+    this.page = page
+    this.discountedProductCards = page.locator(
+      '.product-block:has(.price del):has(.price ins):has(.saled)'
+    )
   }
 
   async goto(): Promise<void> {
-    await this.page.goto('/');
+    await this.page.goto('/')
   }
 
-  async selectProduct(): Promise<void> {
-    const productHref = await this.simpleProductDetails.getAttribute('href');
-    if (!productHref) {
-      throw new Error('Product details link was not found on the homepage');
-    }
-    await this.page.goto(productHref);
-  }
+  async selectRandomDiscountedProduct(): Promise<DiscountedProductCard> {
+    const count = await this.discountedProductCards.count()
+    const visibleCards: Locator[] = []
 
-  async getObservedAddToCartHref(): Promise<string> {
-    const addToCartHref = await this.simpleAddToCartLink.getAttribute('href');
-    if (!addToCartHref?.includes('add-to-cart=10988')) {
-      throw new Error('Observed add-to-cart href was not found on the homepage');
+    for (let index = 0; index < count; index += 1) {
+      const card = this.discountedProductCards.nth(index)
+
+      if (await card.isVisible()) {
+        visibleCards.push(card)
+      }
     }
-    return addToCartHref;
+
+    if (visibleCards.length === 0) {
+      throw new Error('No visible product card with price and discount was found')
+    }
+
+    const card = visibleCards[Math.floor(Math.random() * visibleCards.length)]
+
+    return {
+      card,
+      name: card.locator('.name, .product-title, h3, h4').first(),
+      originalPrice: card.locator('.price del .amount').first(),
+      salePrice: card.locator('.price ins .amount').first(),
+      discountLabel: card.locator('.saled').first(),
+      productLink: card.locator('a.product-image').first()
+    }
   }
 }
