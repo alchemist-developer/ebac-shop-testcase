@@ -1,84 +1,107 @@
-import { test } from "@playwright/test"
+import { findNonPurchasableProduct, findPurchasableSimpleProduct } from '../../api/ProductCatalog'
+import { StoreProduct } from '../../api/StoreApi'
+import { expectAuthenticatedAccount } from '../../assertions/accountAssertions'
 import {
-    expectCartItem,
-    expectCartPage,
-    expectCheckoutNavigationAvailable,
-    expectQuantityControlToBeReadOnly,
-} from "../../assertions/cartAssertions"
-import { expectCheckoutPage } from "../../assertions/checkoutAssertions"
-import {
-    expectProductDetailsPage,
-    expectProductPurchaseControlUnavailable,
-} from "../../assertions/productAssertions"
-import { CartPage } from "../../pages/CartPage"
-import { CheckoutPage } from "../../pages/CheckoutPage"
-import { HomePage } from "../../pages/HomePage"
-import { ProductPage } from "../../pages/ProductPage"
-import { purchaseFlow } from "../../test-data/purchaseFlow"
+  expectCartItemMatchesProduct,
+  expectCartPage,
+  expectCheckoutNavigationAvailable,
+  expectQuantityControl
+} from '../../assertions/cartAssertions'
+import { expectCheckoutPage } from '../../assertions/checkoutAssertions'
+import { expectProductDetailsPage, expectProductPurchaseControlUnavailable } from '../../assertions/productAssertions'
+import { CartPage } from '../../pages/CartPage'
+import { CheckoutPage } from '../../pages/CheckoutPage'
+import { MyAccountPage } from '../../pages/MyAccountPage'
+import { ProductPage } from '../../pages/ProductPage'
+import { test } from '../support/authFixtures'
+import { purchaseFlow } from '../../test-data/purchaseFlow'
+import { deriveCurrencyFromProduct } from '../../utils/currency'
+import { pathFromUrl } from '../../utils/url'
 
 /*
 Feature: Validar fluxo de compra da EBAC Shop
-*/
 
-/*
-  Scenario: [E2E-PURCHASE-001] Avançar no fluxo de compra até o checkout
-    Given que a homepage e o produto simples estão acessíveis
-    When eu seleciono o produto e o adiciono ao carrinho
+  O produto usado em cada cenário é obtido dinamicamente via Store API
+  (não fixado em test-data), para não depender do catálogo permanecer
+  estático entre execuções.
+
+  Scenario: [E2E-PURCHASE-001] Comprar produto autenticado até o checkout
+    Given que existe uma sessão autenticada persistida
+    And o carrinho está vazio
+    And a Store API retorna um produto comprável do tipo simples
+    When eu clico em COMPRAR
     And acesso o carrinho e avanço para o checkout
-    Then o produto, preço e quantidade observada devem ser exibidos
+    Then o preço e a quantidade exibidos no carrinho devem corresponder ao preço retornado pela API
     And os meios de pagamento disponíveis devem ser apresentados
-    And a limitação de alteração de quantidade deve ser registrada
+
+  Scenario: [E2E-PURCHASE-002] Validar produto sem controle de compra
+    Given que a Store API retorna um produto não comprável
+    Then o controle de compra não deve existir na página do produto
 */
 
-test("[E2E-PURCHASE-001] Avançar no fluxo de compra até o checkout", async ({
-  page,
-}) => {
-  const homePage = new HomePage(page, purchaseFlow.product.id)
-  const productPage = new ProductPage(page)
-  const cartPage = new CartPage(page)
-  const checkoutPage = new CheckoutPage(page)
-  let addToCartHref: string
+// The `test` imported above comes from tests/support/authFixtures.ts, which
+// gives each parallel worker its own authenticated session (see that file
+// for why). That's what keeps this describe block safe to run fully
+// parallel with itself and with every other authenticated spec added later:
+// no two tests ever share the same server-side cart session.
+test.describe('Purchase flow', () => {
+  test('[E2E-PURCHASE-001] Comprar produto autenticado até o checkout', async ({ page, request }) => {
+    const accountPage = new MyAccountPage(page)
+    const productPage = new ProductPage(page)
+    const cartPage = new CartPage(page)
+    const checkoutPage = new CheckoutPage(page)
+    let product: StoreProduct
 
-  await test.step("Acessar a homepage e selecionar um produto simples", async () => {
-    await homePage.goto()
-    addToCartHref = await homePage.getObservedAddToCartHref()
-    await homePage.selectProduct()
-    await expectProductDetailsPage(
-      productPage,
-      purchaseFlow.product.detailsPath,
-      purchaseFlow.product.detailsName,
-    )
-  })
-
-  await test.step("Registrar a ausência do controle de compra no detalhe do produto", async () => {
-    await expectProductPurchaseControlUnavailable(productPage)
-  })
-
-  await test.step("Adicionar o produto pelo href exposto pela vitrine", async () => {
-    await productPage.addProductUsingObservedHref(addToCartHref)
-  })
-
-  await test.step("Validar produto, preço e quantidade observada no carrinho", async () => {
-    await cartPage.goto()
-    await expectCartPage(cartPage)
-    await expectCartItem(cartPage, {
-      name: purchaseFlow.product.cartName,
-      unitPrice: purchaseFlow.product.unitPrice,
-      subtotal: purchaseFlow.product.subtotal,
-      quantity: purchaseFlow.product.quantity,
+    await test.step('Confirmar sessão autenticada persistida', async () => {
+      await accountPage.goto()
+      await expectAuthenticatedAccount(accountPage)
     })
-    await expectQuantityControlToBeReadOnly(
-      cartPage,
-      purchaseFlow.product.quantity,
-    )
+
+    await test.step('Garantir carrinho vazio antes do teste', async () => {
+      await cartPage.emptyCart()
+    })
+
+    await test.step('Selecionar produto comprável via Store API', async () => {
+      product = await findPurchasableSimpleProduct(request)
+    })
+
+    await test.step('Acessar o produto e clicar em COMPRAR', async () => {
+      await productPage.goto(pathFromUrl(product.permalink))
+      await expectProductDetailsPage(productPage, pathFromUrl(product.permalink), product.name)
+      await productPage.addProductToCart()
+    })
+
+    await test.step('Validar item e quantidade no carrinho contra o preço retornado pela API', async () => {
+      const currency = deriveCurrencyFromProduct(product)
+
+      await cartPage.goto()
+      await expectCartPage(cartPage)
+      await expectCartItemMatchesProduct(cartPage, product, currency)
+      await expectQuantityControl(cartPage, product)
+    })
+
+    await test.step('Avançar para o checkout', async () => {
+      await expectCheckoutNavigationAvailable(cartPage)
+      await cartPage.goToCheckout()
+      await expectCheckoutPage(checkoutPage, { orderButtonText: purchaseFlow.checkout.orderButtonText })
+    })
   })
 
-  await test.step("Avançar para o checkout e validar dados disponíveis", async () => {
-    await expectCheckoutNavigationAvailable(cartPage)
-    await cartPage.goToCheckout()
-    await expectCheckoutPage(checkoutPage, {
-      orderButtonText: purchaseFlow.checkout.orderButtonText,
-      paymentMethods: purchaseFlow.checkout.paymentMethods,
+  test('[E2E-PURCHASE-002] Validar produto sem controle de compra', async ({ page, request }) => {
+    const productPage = new ProductPage(page)
+    let product: StoreProduct
+
+    await test.step('Selecionar produto não comprável via Store API', async () => {
+      product = await findNonPurchasableProduct(request)
+    })
+
+    await test.step('Acessar o produto negativo', async () => {
+      await productPage.goto(pathFromUrl(product.permalink))
+      await expectProductDetailsPage(productPage, pathFromUrl(product.permalink), product.name)
+    })
+
+    await test.step('Confirmar ausência do controle de compra', async () => {
+      await expectProductPurchaseControlUnavailable(productPage)
     })
   })
 })
