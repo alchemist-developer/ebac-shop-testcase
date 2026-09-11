@@ -13,9 +13,7 @@ jobs:
 
     env:
       TEST_ENV: local
-      BASE_URL: ${{ vars.BASE_URL || 'http://lojaebac.ebaconline.art.br' }}
-      TEST_USER: ${{ secrets.TEST_USER }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      BASE_URL: ${{ vars.BASE_URL }}
 
     steps:
       - name: Checkout repository
@@ -33,11 +31,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # --repeat-each surfaces tests that pass most of the time but not
-      # always — the definition of flaky. --workers matches the local stress
-      # test that validated per-worker auth isolation (see README).
-      # forbidOnly/retries stay off here on purpose: a flaky test masked by
-      # a retry would defeat the point of this workflow.
+      - name: Restore test user pool
+        uses: actions/cache@v4
+        with:
+          path: playwright/.auth/pool
+          key: test-user-pool-${{ github.run_id }}
+          restore-keys: test-user-pool-
+
       - name: Run E2E and API tests repeated
         run: npx playwright test --project=chromium-e2e --project=chromium-api --repeat-each=5 --workers=4 --retries=0
 

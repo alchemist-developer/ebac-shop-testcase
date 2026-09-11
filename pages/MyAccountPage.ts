@@ -5,16 +5,22 @@ export class MyAccountPage {
   readonly passwordInput: Locator
   readonly rememberMeCheckbox: Locator
   readonly loginButton: Locator
+  readonly registerEmailInput: Locator
+  readonly registerPasswordInput: Locator
+  readonly registerButton: Locator
   readonly authenticatedMarker: Locator
-  readonly loginErrorMessage: Locator
+  readonly errorMessage: Locator
 
   constructor(readonly page: Page) {
     this.usernameInput = page.locator('#username')
     this.passwordInput = page.locator('#password')
     this.rememberMeCheckbox = page.locator('#rememberme')
     this.loginButton = page.locator('input[name="login"]')
+    this.registerEmailInput = page.locator('#reg_email')
+    this.registerPasswordInput = page.locator('#reg_password')
+    this.registerButton = page.locator('input[name="register"]')
     this.authenticatedMarker = page.getByText(/Sair|Logout/).first()
-    this.loginErrorMessage = page.locator('.woocommerce-error')
+    this.errorMessage = page.locator('.woocommerce-error')
   }
 
   async goto(): Promise<void> {
@@ -26,5 +32,11 @@ export class MyAccountPage {
     await this.passwordInput.fill(password)
     await this.rememberMeCheckbox.check()
     await this.loginButton.click()
+  }
+
+  async register(email: string, password: string): Promise<void> {
+    await this.registerEmailInput.fill(email)
+    await this.registerPasswordInput.fill(password)
+    await this.registerButton.click()
   }
 }

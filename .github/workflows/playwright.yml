@@ -14,11 +14,6 @@ jobs:
     timeout-minutes: 10
 
     env:
-      # playwright.config.ts imports config/environment.ts unconditionally,
-      # which requires BASE_URL to be set even just to enumerate/run the
-      # `unit` project (pure functions, no browser, no real dependency on
-      # the app under test). This placeholder satisfies that requirement
-      # without this job needing real app credentials.
       BASE_URL: http://localhost
 
     steps:
@@ -51,9 +46,7 @@ jobs:
 
     env:
       TEST_ENV: local
-      BASE_URL: ${{ vars.BASE_URL || 'http://lojaebac.ebaconline.art.br' }}
-      TEST_USER: ${{ secrets.TEST_USER }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      BASE_URL: ${{ vars.BASE_URL }}
 
     steps:
       - name: Checkout repository
@@ -70,6 +63,13 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+
+      - name: Restore test user pool
+        uses: actions/cache@v4
+        with:
+          path: playwright/.auth/pool
+          key: test-user-pool-${{ github.run_id }}
+          restore-keys: test-user-pool-
 
       - name: Run E2E and API tests
         run: npx playwright test --project=chromium-e2e --project=chromium-api
