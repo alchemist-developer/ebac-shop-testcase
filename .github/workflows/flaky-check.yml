@@ -1,0 +1,94 @@
+name: Nightly Flaky Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  repeat-e2e-api:
+    name: Repeat E2E + API suite to surface flaky tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+
+    env:
+      TEST_ENV: local
+      BASE_URL: ${{ vars.BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Restore test user pool
+        uses: actions/cache@v4
+        with:
+          path: playwright/.auth/pool
+          key: test-user-pool-${{ github.run_id }}
+          restore-keys: test-user-pool-
+
+      - name: Run E2E and API tests repeated
+        run: npx playwright test --project=chromium-e2e --project=chromium-api --repeat-each=5 --workers=4 --retries=0
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-check-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload failure evidence (traces, videos, screenshots)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flaky-check-test-results
+          path: test-results/
+          retention-days: 14
+
+      - name: Upload CSV results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-check-csv-results
+          path: reports/results.csv
+          retention-days: 14
+
+      - name: Get Allure history
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Generate Allure report with trend history
+        uses: simple-elf/allure-report-action@v1.15
+        if: always()
+        with:
+          allure_results: allure-results
+          gh_pages: gh-pages
+          allure_report: allure-report
+          allure_history: allure-history
+
+      - name: Publish Allure report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4.1.0
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history

@@ -4,15 +4,27 @@
   "private": true,
   "description": "Aarin - Playwright E2E tests for the EBAC Shop technical challenge",
   "scripts": {
+    "test:unit": "playwright test tests/unit",
     "test:e2e": "playwright test tests/e2e",
+    "test:api": "playwright test tests/api",
     "test:e2e:headed": "playwright test tests/e2e --headed",
     "test:e2e:debug": "playwright test tests/e2e --debug",
-    "report": "playwright show-report"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "report": "playwright show-report",
+    "report:allure": "allure generate allure-results --clean -o allure-report && allure open allure-report"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^10.6.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.3.0",
+    "allure-commandline": "^2.43.0",
+    "allure-playwright": "^3.12.1",
     "dotenv": "^17.4.2",
-    "typescript": "^5.9.2"
+    "eslint": "^10.10.0",
+    "eslint-plugin-playwright": "^2.11.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.70.0"
   }
 }

@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
-import 'dotenv/config';
+import { defineConfig, devices } from '@playwright/test'
+import { environmentConfig } from './config/environment'
 
 export default defineConfig({
   testDir: './tests',
@@ -7,9 +7,14 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    ['./reporters/csvReporter.ts'],
+    ['allure-playwright', { outputFolder: 'allure-results' }]
+  ],
   use: {
-    baseURL: process.env.BASE_URL,
+    baseURL: environmentConfig.baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -17,8 +22,25 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'unit',
+      testMatch: /tests\/unit\/.*\.spec\.ts/
+    },
+    {
+      name: 'health-check',
+      testMatch: /tests\/support\/healthCheck\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-e2e',
+      testMatch: /tests\/e2e\/.*\.spec\.ts/,
+      dependencies: ['health-check'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-api',
+      testMatch: /tests\/api\/.*\.spec\.ts/,
+      dependencies: ['health-check'],
       use: { ...devices['Desktop Chrome'] }
     }
   ]
-});
+})
