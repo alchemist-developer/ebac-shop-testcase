@@ -12,6 +12,19 @@
 
 </div>
 
+## Sumário
+
+1. [Stack](#stack)
+2. [Como rodar](#como-rodar)
+3. [Autenticação](#autenticação)
+4. [Observabilidade](#observabilidade)
+5. [Estratégia de testes](#estratégia-de-testes)
+6. [CI/CD](#cicd)
+7. [Versionamento](#versionamento)
+8. [Estrutura](#estrutura)
+9. [Limitações conhecidas](#limitações-conhecidas)
+10. [Desafio de Investigação](#desafio-de-investigação-o-cliente-paga-mas-o-pedido-não-aparece-em-meus-pedidos)
+
 ## Stack
 
 - **Playwright + TypeScript**: E2E (browser) e API testing na mesma ferramenta, evitando duplicar infraestrutura de teste.
@@ -134,7 +147,7 @@ Problemas concretos de diagnóstico, cada um endereçado diretamente:
 - **Tendência de flakiness entre execuções, não só por execução.**
   - `flaky-check.yml` já rodava a suíte repetida, mas não acumulava histórico entre as execuções noturnas.
   - Agora o job gera resultados no formato Allure (`allure-playwright`, configurado em `playwright.config.ts`) e usa `simple-elf/allure-report-action` para mesclar com o histórico do branch `gh-pages` (`actions/checkout` desse branch antes, com `continue-on-error: true` para não quebrar na primeira execução), publicado de volta via `peaceiris/actions-gh-pages`.
-  - Exige `permissions: contents: write` no job e o GitHub Pages do repositório habilitado apontando pro branch `gh-pages` (Settings → Pages → Source: Deploy from a branch → `gh-pages` / `root`), configuração manual de repositório que não tem como ser feita por código.
+  - **[Relatório ao vivo](https://alchemist-developer.github.io/ebac-shop-testcase/)**, publicado a cada execução do `flaky-check.yml` via GitHub Pages (Settings → Pages → Source: Deploy from a branch → `gh-pages` / `root`).
   - Localmente, gerar o relatório Allure (`npm run report:allure`) exige Java instalado (`allure-commandline` é uma ferramenta Java); no CI isso não é um problema porque o runner do GitHub já vem com Java.
 
 ## Estratégia de testes
@@ -166,7 +179,7 @@ flowchart LR
     end
 ```
 
-**`.github/workflows/playwright.yml`** roda em push (`main`, `feat/**`) e pull requests para `main`, em dois jobs sequenciais (fail-fast: o segundo só roda se o primeiro passar):
+**`.github/workflows/playwright.yml`** roda em push (`main`, `feat/**`) e pull requests para `main`, em dois jobs sequenciais (fail-fast: o segundo só roda se o primeiro passar). [Ver execuções e baixar os artifacts](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/playwright.yml) (relatório HTML, CSV, traces em falha):
 
 1. **`quality-gates`**: `typecheck` + `lint` + `test:unit`.
    - Não sobe browser, não depende da aplicação real estar no ar (`BASE_URL=http://localhost` fixo só para satisfazer o import de `config/environment.ts`, que exige a variável estar setada; nenhum teste deste job faz requisição real).
@@ -177,7 +190,7 @@ flowchart LR
    - `retries: 2` e `workers: 1` em CI (`playwright.config.ts`, condicionado a `process.env.CI`): restrição conservadora para não sobrecarregar o site de teste compartilhado, não uma necessidade de isolamento (a autenticação por worker foi validada localmente sob 8 workers concorrentes reais, `npx playwright test tests/e2e/purchase-flow.spec.ts --workers=8 --repeat-each=5`, 10/10 sem colisão de carrinho).
    - Upload do relatório HTML sempre, e de `test-results/` (traces, vídeo, screenshot) só em falha.
 
-**`.github/workflows/flaky-check.yml`**: ver [Observabilidade](#observabilidade).
+**`.github/workflows/flaky-check.yml`**: ver [Observabilidade](#observabilidade). [Ver execuções](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/flaky-check.yml), incluindo o relatório Allure publicado a cada run.
 
 **Antes do primeiro run**, configurar a repository variable `BASE_URL` (Settings → Secrets and variables → Actions → Variables) com a URL do ambiente sob teste.
 - Nenhuma credencial é necessária: a autenticação não depende de secrets (ver [Autenticação](#autenticação)).
@@ -186,6 +199,8 @@ flowchart LR
 ## Versionamento
 
 Histórico de commits segue [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `test:`, `docs:`, `style:`, `refactor:`, `build:`, `chore:`), uma unidade lógica por commit. Cada commit passa isoladamente por typecheck, lint e a suíte antes de existir, não é só uma mensagem formatada em cima de mudanças misturadas.
+
+Exemplo real: [PR #1](https://github.com/alchemist-developer/ebac-shop-testcase/pull/1), com os commits organizados e a descrição de merge.
 
 ## Estrutura
 
@@ -226,7 +241,7 @@ utils/          funções puras (cálculo de desconto, parsing de moeda, moeda a
   - Em CI (runner limpo por job) isso é confiável.
   - Localmente, se múltiplas invocações de `playwright test` rodarem em sequência muito rápida ou concorrentemente, o índice pode não repetir entre execuções, e o pool simplesmente não bate (o worker registra mais uma conta em vez de reaproveitar, sem quebrar nada, só perde a otimização naquela execução).
 
-## Investigação: "o cliente paga, mas o pedido não aparece em Meus Pedidos"
+## Desafio de Investigação: "o cliente paga, mas o pedido não aparece em Meus Pedidos"
 
 Cenário situacional: produção, sem acesso ao código-fonte, apenas logs básicos e apoio dos times de Produto e Backend.
 
