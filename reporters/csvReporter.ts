@@ -81,11 +81,11 @@ function buildStepSummary(rows: ResultRow[]): string {
     '<details>',
     '<summary>Ver todos os cenários</summary>',
     '',
-    toMarkdownRow(['ID', 'Projeto', 'Status', 'Outcome', 'Duração (ms)']),
-    toMarkdownRow(['---', '---', '---', '---', '---'])
+    toMarkdownRow(['ID', 'Projeto', 'Status', 'Outcome', 'Duração (ms)', 'Repetição']),
+    toMarkdownRow(['---', '---', '---', '---', '---', '---'])
   )
   for (const row of rows) {
-    lines.push(toMarkdownRow([row.id || row.title, row.project, row.status, row.outcome, row.durationMs]))
+    lines.push(toMarkdownRow([row.id || row.title, row.project, row.status, row.outcome, row.durationMs, row.repeatEachIndex]))
   }
   lines.push('', '</details>', '')
 

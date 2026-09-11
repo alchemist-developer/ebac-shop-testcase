@@ -92,3 +92,13 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: allure-history
+
+      - name: Add Allure report link to summary
+        if: always()
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          {
+            echo "## Relatório Allure"
+            echo ""
+            echo "[Ver histórico de tendência](https://${GITHUB_REPOSITORY_OWNER}.github.io/${REPO_NAME}/)"
+          } >> "$GITHUB_STEP_SUMMARY"
