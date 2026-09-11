@@ -4,6 +4,8 @@ playwright-report/
 test-results/
 blob-report/
 reports/
+allure-results/
+allure-report/
 .vscode
 playwright/.auth/
 .eslintcache
