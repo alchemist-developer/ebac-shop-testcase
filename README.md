@@ -1,6 +1,16 @@
+<div align="center">
+
 # Aarin: EBAC Shop QA Automation
 
-Suíte de automação E2E e API para o desafio técnico da EBAC Shop (loja WooCommerce), construída com Playwright + TypeScript sob mentalidade de framework: preparada para crescer de dezenas para centenas de cenários sem retrabalho estrutural.
+**Suíte de automação E2E e API para o desafio técnico da EBAC Shop** (loja WooCommerce), construída com Playwright + TypeScript sob mentalidade de framework: preparada para crescer de dezenas para centenas de cenários sem retrabalho estrutural.
+
+[![CI](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/playwright.yml/badge.svg)](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/playwright.yml)
+[![Nightly Flaky Check](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/flaky-check.yml/badge.svg)](https://github.com/alchemist-developer/ebac-shop-testcase/actions/workflows/flaky-check.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?style=flat&logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org)
+
+</div>
 
 ## Stack
 
@@ -172,6 +182,10 @@ flowchart LR
 **Antes do primeiro run**, configurar a repository variable `BASE_URL` (Settings → Secrets and variables → Actions → Variables) com a URL do ambiente sob teste.
 - Nenhuma credencial é necessária: a autenticação não depende de secrets (ver [Autenticação](#autenticação)).
 - Sem `BASE_URL` configurada, o job falha explicitamente em vez de rodar contra um valor padrão fixo no código (mesmo princípio de `config/environment.ts`: configuração de ambiente não é hardcoded).
+
+## Versionamento
+
+Histórico de commits segue [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `test:`, `docs:`, `style:`, `refactor:`, `build:`, `chore:`), uma unidade lógica por commit. Cada commit passa isoladamente por typecheck, lint e a suíte antes de existir, não é só uma mensagem formatada em cima de mudanças misturadas.
 
 ## Estrutura
 
