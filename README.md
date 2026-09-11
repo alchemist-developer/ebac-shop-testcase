@@ -14,6 +14,21 @@ Suíte de automação E2E e API para o desafio técnico da EBAC Shop (loja WooCo
 - **Utils puras** (`utils/`): cálculo de desconto e parsing de moeda testável isoladamente, sem depender do browser.
 - **ESLint (flat config) + typescript-eslint (type-checked) + eslint-plugin-playwright**: gate estático de correção de tipos, promises e anti-padrões específicos de Playwright (ex.: assertion ausente, wait arbitrário).
 
+### Arquitetura em camadas
+
+Cada camada tem uma responsabilidade única: trocar a implementação de uma não exige tocar nas outras.
+
+```mermaid
+flowchart TD
+    T["tests/*.spec.ts<br/>cenários BDD/Gherkin"] --> P["pages/<br/>Page Objects"]
+    T --> A["api/<br/>Store API client"]
+    P --> Browser["Browser real<br/>EBAC Shop (WooCommerce)"]
+    A --> API["Store API real<br/>wc/store/* (WordPress REST)"]
+    P --> AS["assertions/<br/>expect isolado do Page Object"]
+    A --> AS
+    AS --> R["Reporters<br/>list, HTML, CSV, Allure, Step Summary"]
+```
+
 ## Como rodar
 
 ```bash
@@ -60,6 +75,20 @@ Cada **worker paralelo** do Playwright cria sua própria conta e mantém sua pr�
    - Essa loja não expõe nenhum jeito de uma conta se autoexcluir (ver [Limitações](#limitações-conhecidas)), então registrar uma conta nova a cada execução faria o número de contas crescer sem limite para sempre.
    - `utils/testUserPool.ts` persiste a credencial de cada conta criada (`playwright/.auth/pool/worker-N.json`, git-ignorado); na próxima vez que aquele worker precisar autenticar, ele *loga* na conta existente em vez de registrar outra.
    - Localmente esse arquivo persiste em disco. No CI, `playwright.yml` e `flaky-check.yml` cacheiam essa pasta entre execuções (`actions/cache`, chave única por run com `restore-keys` pegando a mais recente), então mesmo um runner limpo a cada job reaproveita o mesmo pool pequeno de contas indefinidamente.
+
+O resultado é essa decisão por worker (`tests/support/authFixtures.ts`):
+
+```mermaid
+flowchart TD
+    Start([Worker inicia]) --> D1{storageState<br/>já existe?}
+    D1 -->|sim| Reuse[Reusa sessão]
+    D1 -->|não| D2{Conta já existe<br/>no pool?}
+    D2 -->|sim| Login[Login com<br/>conta do pool]
+    D2 -->|não| Register[Registra nova<br/>conta via faker]
+    Register --> SavePool[Salva credencial<br/>no pool]
+    SavePool --> SaveState[Salva storageState]
+    Login --> SaveState
+```
 
 `workerStorageState` (`tests/support/authFixtures.ts`) cria a conta e o `storageState` uma única vez por worker, cacheado em `playwright/.auth/worker-N.json` (git-ignorado) e reaproveitado em reexecuções locais dentro do mesmo checkout.
 
@@ -116,6 +145,16 @@ Cobertura definida por análise de risco sobre o fluxo de compra, não por cober
 Cada cenário tem um ID rastreável (`[E2E-PURCHASE-001]`, `[API-WC-STORE-CART-001]` etc.) espelhado no BDD/Gherkin em comentário acima do `test.describe`/`test`, para rastreabilidade entre risco → cenário → asserção sem depender de uma ferramenta BDD dedicada (Cucumber não trouxe valor aqui dado o tamanho atual da suíte, decisão pragmática, revista se o volume de cenários por stakeholder não-técnico crescer).
 
 ## CI/CD
+
+```mermaid
+flowchart LR
+    subgraph sg1["push / pull request"]
+        A1["quality-gates<br/>typecheck + lint + unit"] --> A2["e2e-api-tests<br/>health-check → chromium-e2e + chromium-api"] --> A3["Artifacts<br/>HTML, CSV, Step Summary"]
+    end
+    subgraph sg2["schedule diário 06:00 / workflow_dispatch"]
+        B1["flaky-check<br/>--repeat-each=5"] --> B2["Allure + histórico<br/>merge com gh-pages"] --> B3["GitHub Pages"]
+    end
+```
 
 **`.github/workflows/playwright.yml`** roda em push (`main`, `feat/**`) e pull requests para `main`, em dois jobs sequenciais (fail-fast: o segundo só roda se o primeiro passar):
 
@@ -225,4 +264,4 @@ Todos os itens abaixo são pedidos que eu levaria prontos ao time de Backend (a 
 5. Se a cadeia de escrita estiver inteira e correta até a persistência: o problema passa a ser de leitura (cache, API ou BFF), e a pergunta muda de "o que quebrou no pagamento" para "por que essa camada não reflete o banco", direcionada a outro time.
 6. Em paralelo, uma contagem de quantos pedidos ficaram presos além de um tempo razoável em cada ponto da cadeia. Isso estima o tamanho real do problema (1 caso isolado é diferente de uma falha sistêmica) e ajuda a priorizar.
 
-Esse plano usa só o que já existe (meus logs básicos, e o acesso que os times de Produto e Backend já têm) antes de propor qualquer mudança de código ou instrumentação nova. Rastrear um identificador único pela cadeia inteira, em vez de cruzar logs soltos, é o que transforma "vasculhar" em um teste de hipótese com resultado binário em cada etapa.
+Esse plano usa só o que já existe (meus logs básicos, e o acesso que os times de Produto e Backend já têm) antes de propor qualquer mudança de código ou instrumentação nova. Rastrear um identificador único pela cadeia inteira, em vez de cruzar logs soltos, é o que transforma "vasculhar" em um teste de hipótese com resultado binário em cada etapa (sequência de checagens sim/não).
