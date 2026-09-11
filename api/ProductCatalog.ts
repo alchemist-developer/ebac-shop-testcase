@@ -1,5 +1,5 @@
 import { APIRequestContext } from '@playwright/test'
-import { StoreApi, StoreProduct } from './StoreApi'
+import { StoreApi, StoreProduct, StoreProductDetail, StoreProductVariation } from './StoreApi'
 
 const CATALOG_PAGE_SIZE = 100
 
@@ -47,4 +47,30 @@ export async function findAnyProduct(request: APIRequestContext): Promise<StoreP
   }
 
   return product
+}
+
+export interface PurchasableVariation {
+  product: StoreProduct
+  variation: StoreProductVariation
+}
+
+export async function findPurchasableVariation(request: APIRequestContext): Promise<PurchasableVariation> {
+  const products = await fetchCatalog(request)
+  const storeApi = new StoreApi(request)
+
+  for (const product of products) {
+    if (!(product.is_purchasable && product.is_in_stock && product.type === 'variable')) {
+      continue
+    }
+
+    const detailResponse = await storeApi.getProduct(product.id)
+    const detail = (await detailResponse.json()) as StoreProductDetail
+    const [variation] = detail.variations
+
+    if (variation) {
+      return { product, variation }
+    }
+  }
+
+  throw new Error('No purchasable variable product with an available variation found in the catalog')
 }

@@ -47,3 +47,40 @@ export async function expectEmptyCartResponse(
 
   return cart
 }
+
+export async function expectItemAddedWithQuantity(
+  response: APIResponse,
+  itemId: number,
+  expectedQuantity: number
+): Promise<StoreCart> {
+  expect(response.status()).toBe(201)
+  const cart = (await response.json()) as StoreCart
+  const item = cart.items.find((candidate) => candidate.id === itemId)
+
+  expect(item, `Item ${itemId} was not found in the cart response`).toBeDefined()
+  expect(item?.quantity).toBe(expectedQuantity)
+
+  return cart
+}
+
+export async function expectItemQuantityUpdated(
+  response: APIResponse,
+  key: string,
+  expectedQuantity: number,
+  expectedUnitPriceCents: number
+): Promise<void> {
+  expect(response.status()).toBe(200)
+  const cart = (await response.json()) as StoreCart
+  const item = cart.items.find((candidate) => candidate.key === key)
+
+  expect(item, `Item with key ${key} was not found in the cart response`).toBeDefined()
+  expect(item?.quantity).toBe(expectedQuantity)
+  expect(Number(item?.totals.line_total)).toBe(expectedUnitPriceCents * expectedQuantity)
+}
+
+export async function expectSoldIndividuallyRejected(response: APIResponse): Promise<void> {
+  expect(response.status()).toBe(400)
+  const body = (await response.json()) as { code: string }
+
+  expect(body.code).toBe('woocommerce_rest_cart_product_sold_individually')
+}
