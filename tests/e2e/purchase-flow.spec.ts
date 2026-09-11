@@ -39,11 +39,6 @@ Feature: Validar fluxo de compra da EBAC Shop
     Then o controle de compra não deve existir na página do produto
 */
 
-// The `test` imported above comes from tests/support/authFixtures.ts, which
-// gives each parallel worker its own authenticated session (see that file
-// for why). That's what keeps this describe block safe to run fully
-// parallel with itself and with every other authenticated spec added later:
-// no two tests ever share the same server-side cart session.
 test.describe('Purchase flow', () => {
   test('[E2E-PURCHASE-001] Comprar produto autenticado até o checkout', async ({ page, request }) => {
     const accountPage = new MyAccountPage(page)

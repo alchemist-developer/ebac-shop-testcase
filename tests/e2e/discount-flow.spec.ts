@@ -23,11 +23,6 @@ Feature: Validar descontos exibidos na vitrine
     Given que existe um produto com desconto exibido na homepage
     When eu adiciono o produto ao carrinho
     Then o subtotal cobrado deve corresponder ao preço promocional exibido no card
-
-  Estes cenários não usam sessão autenticada (nenhum storageState é
-  aplicado), então cada teste recebe um contexto de browser novo com seu
-  próprio cookie de sessão de convidado — o carrinho já nasce vazio e
-  isolado por teste, sem necessidade de limpeza manual.
 */
 
 test('[E2E-DISCOUNT-001] Validar desconto aplicado no card do produto', async ({ page, request }) => {
