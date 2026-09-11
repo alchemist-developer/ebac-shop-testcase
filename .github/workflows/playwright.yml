@@ -38,6 +38,14 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Upload CSV results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: csv-results-quality-gates
+          path: reports/results.csv
+          retention-days: 14
+
   e2e-api-tests:
     name: E2E + API tests
     needs: quality-gates
@@ -88,4 +96,12 @@ jobs:
         with:
           name: test-results
           path: test-results/
+          retention-days: 14
+
+      - name: Upload CSV results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: csv-results-e2e-api
+          path: reports/results.csv
           retention-days: 14
