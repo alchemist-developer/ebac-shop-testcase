@@ -7,8 +7,8 @@ export class CartPage {
   readonly productName: Locator
   readonly productPrice: Locator
   readonly productSubtotal: Locator
-  readonly productQuantity: Locator
   readonly quantityInput: Locator
+  readonly updateCartButton: Locator
   readonly checkoutButton: Locator
 
   constructor(page: Page) {
@@ -18,13 +18,23 @@ export class CartPage {
     this.productName = this.cartItem.locator('.product-name')
     this.productPrice = this.cartItem.locator('.product-price')
     this.productSubtotal = this.cartItem.locator('.product-subtotal')
-    this.productQuantity = this.cartItem.locator('.product-quantity')
     this.quantityInput = this.cartItem.locator('input[name$="[qty]"]')
+    this.updateCartButton = page.locator('[name="update_cart"]')
     this.checkoutButton = page.getByRole('link', { name: 'Concluir Compra' })
   }
 
   async goto(): Promise<void> {
     await this.page.goto('/carrinho/')
+  }
+
+  /**
+   * Só é aceito por itens sem sold_individually: nesse caso o input
+   * de quantidade vem hidden e este método falharia ao tentar
+   * preenchê-lo (comportamento correto, ver ProductCatalog.findPurchasableVariation).
+   */
+  async updateQuantity(value: string): Promise<void> {
+    await this.quantityInput.fill(value)
+    await this.updateCartButton.click()
   }
 
   async goToCheckout(): Promise<void> {
