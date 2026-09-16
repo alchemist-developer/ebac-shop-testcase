@@ -222,8 +222,8 @@ utils/          funções puras (cálculo de desconto, parsing de moeda, moeda a
 ## Limitações conhecidas
 
 - **Quantidade travada em 1 é uma regra de negócio por produto (`sold_individually`), não uma limitação da loja inteira.**
-  - Versão anterior deste README afirmava "input hidden, 99/99 produtos, sem exceção" — essa conclusão estava errada, chegou de testar só produtos `type: 'simple'`. Neste catálogo os 6 produtos `simple` são todos `sold_individually: true` (quantidade trava em 1 por design, correto) e os 93 produtos `variable` são todos `sold_individually: false`, com `<input type="number">` funcional tanto na página do produto quanto no carrinho.
-  - Corrigido depois de feedback de processo seletivo apontar que os próprios testes já indicavam um caminho viável — a amostragem (só `simple`) garantia a conclusão "impossível" antes mesmo de rodar.
+  - Versão anterior deste README afirmava "input hidden, 99/99 produtos, sem exceção", essa conclusão estava errada, chegou de testar só produtos `type: 'simple'`. Neste catálogo os 6 produtos `simple` são todos `sold_individually: true` (quantidade trava em 1 por design, correto) e os 93 produtos `variable` são todos `sold_individually: false`, com `<input type="number">` funcional tanto na página do produto quanto no carrinho.
+  - Corrigido depois de feedback de processo seletivo apontar que os próprios testes já indicavam um caminho viável, a amostragem (só `simple`) garantia a conclusão "impossível" antes mesmo de rodar.
   - `tests/e2e/cart-quantity.spec.ts` agora cobre o caminho real: seleciona um produto `variable` via `ProductCatalog.findPurchasableVariation`, altera a quantidade pela UI (stepper + "Update Cart") e valida o subtotal recalculado. `assertions/cartAssertions.ts#expectQuantityControl` continua cobrindo os dois comportamentos (hidden para `sold_individually`, editável para os demais).
   - A regra de negócio também é coberta a nível de API (`tests/api/cart-mutation.spec.ts`), complementar, não substituta, à cobertura de UI.
 
