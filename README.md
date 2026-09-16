@@ -136,7 +136,7 @@ Problemas concretos de diagnóstico, cada um endereçado diretamente:
 
 - **Resultado estruturado para análise além do relatório HTML.**
   - `reporters/csvReporter.ts` é um reporter Playwright customizado que grava `reports/results.csv` a cada execução: id do cenário, projeto, status, status esperado, `outcome`, duração, retry, `repeatEachIndex`, arquivo e a primeira linha do erro.
-  - A coluna que importa é `outcome` vs. `status`: um teste com `test.fail()` como `E2E-CART-QUANTITY-001` aparece com `status=failed` e `outcome=expected`, distinção que uma ferramenta de análise (ou uma IA lendo o CSV) precisa para não tratar um defeito documentado como regressão nova.
+  - A coluna que importa é `outcome` vs. `status`: se algum cenário futuro precisar documentar uma falha esperada via `test.fail()`, ele aparece com `status=failed` e `outcome=expected`, distinção que uma ferramenta de análise (ou uma IA lendo o CSV) precisa para não tratar um defeito documentado como regressão nova. Nenhum cenário atual usa `test.fail()` (o único caso, `E2E-CART-QUANTITY-001`, foi corrigido para um teste E2E positivo — ver [Limitações conhecidas](#limitações-conhecidas)); o mecanismo continua coberto pelo reporter para quando for necessário de novo.
   - Subido como artifact em toda execução de CI (`actions/upload-artifact`, `if: always()`), inclusive nas que passam, para dar histórico de execução pronto para consumo automatizado sem depender de parsear HTML.
 
 - **Resultado visível sem baixar nada.**
@@ -162,7 +162,7 @@ Cobertura definida por análise de risco sobre o fluxo de compra, não por cober
 | Desconto exibido corretamente no card, mas preço cobrado no carrinho é o original | `E2E-DISCOUNT-002` | Rastreabilidade de valor entre página de vitrine e carrinho: o risco mais crítico de um fluxo de desconto (perda financeira silenciosa) |
 | Contrato da Store API (produtos e carrinho) muda sem quebrar o front | `API-WC-STORE-PRODUCTS-001`, `API-WC-STORE-CART-001` | Contrato mínimo observado via API, independente de UI: mais rápido e estável que validar o mesmo via browser |
 | Parsing de preço/percentual falha silenciosamente (ex.: elemento vazio na página vira "R$0,00" em vez de erro) | `UNIT-DISCOUNT-CALC-*`, `UNIT-DISCOUNT-PARSE-*` | Unitário: particionamento de equivalência (classe válida/inválida) e valor-limite (0%, 100%, preço = 0) sobre `utils/discountCalculator.ts` |
-| Passo obrigatório "alterar quantidade do item" não tem caminho de UI neste ambiente (input sempre `hidden`, 99/99 produtos) | `E2E-CART-QUANTITY-001` (falha esperada, `test.fail()`) | Teste E2E que tenta a interação real e falha de propósito, documentando o defeito em vez de mascará-lo |
+| Quantidade alterada pela UI não reflete no subtotal cobrado | `E2E-CART-QUANTITY-001` | E2E positivo sobre produto `variable` (não `sold_individually`); a quantidade trava em 1 apenas para produtos `sold_individually`, regra coberta à parte |
 | Regra de negócio de quantidade por item (existe e é aplicada pelo backend, mesmo sem UI) | `API-WC-CART-UPDATE-ITEM-001`, `API-WC-CART-SOLD-INDIVIDUALLY-001` | Cobertura de API no nível onde a regra é de fato observável, complementar (não substituta) ao teste de UI acima |
 
 Cada cenário tem um ID rastreável (`[E2E-PURCHASE-001]`, `[API-WC-STORE-CART-001]` etc.) espelhado no BDD/Gherkin em comentário acima do `test.describe`/`test`, para rastreabilidade entre risco → cenário → asserção sem depender de uma ferramenta BDD dedicada (Cucumber não trouxe valor aqui dado o tamanho atual da suíte, decisão pragmática, revista se o volume de cenários por stakeholder não-técnico crescer).
@@ -221,10 +221,11 @@ utils/          funções puras (cálculo de desconto, parsing de moeda, moeda a
 
 ## Limitações conhecidas
 
-- **Alterar a quantidade do item no carrinho não é possível pela UI neste ambiente.**
-  - Confirmado por exploração direta, não suposto: o input de quantidade do carrinho é sempre `<input type="hidden" value="1">`, testado em produtos simples e variáveis, 99/99 produtos do catálogo, sem exceção. O botão "Update Cart" existe no DOM mas vem `disabled` por padrão.
-  - `tests/e2e/cart-quantity.spec.ts` documenta isso como falha esperada (`test.fail()`): o teste tenta a interação real e falha porque o Playwright recusa preencher um elemento oculto, a mesma barreira que um usuário real enfrentaria.
-  - A regra de negócio equivalente é coberta e passa a nível de API (`tests/api/cart-mutation.spec.ts`), mas isso é cobertura adicional, não substitui o requisito de UI.
+- **Quantidade travada em 1 é uma regra de negócio por produto (`sold_individually`), não uma limitação da loja inteira.**
+  - Versão anterior deste README afirmava "input hidden, 99/99 produtos, sem exceção" — essa conclusão estava errada, chegou de testar só produtos `type: 'simple'`. Neste catálogo os 6 produtos `simple` são todos `sold_individually: true` (quantidade trava em 1 por design, correto) e os 93 produtos `variable` são todos `sold_individually: false`, com `<input type="number">` funcional tanto na página do produto quanto no carrinho.
+  - Corrigido depois de feedback de processo seletivo apontar que os próprios testes já indicavam um caminho viável — a amostragem (só `simple`) garantia a conclusão "impossível" antes mesmo de rodar.
+  - `tests/e2e/cart-quantity.spec.ts` agora cobre o caminho real: seleciona um produto `variable` via `ProductCatalog.findPurchasableVariation`, altera a quantidade pela UI (stepper + "Update Cart") e valida o subtotal recalculado. `assertions/cartAssertions.ts#expectQuantityControl` continua cobrindo os dois comportamentos (hidden para `sold_individually`, editável para os demais).
+  - A regra de negócio também é coberta a nível de API (`tests/api/cart-mutation.spec.ts`), complementar, não substituta, à cobertura de UI.
 
 - **Contract testing não usa uma especificação formal.**
   - Não há OpenAPI/Swagger publicado para a EBAC Shop. O que existe, confirmado por exploração direta (`OPTIONS` em qualquer rota `wc/store/*`), é a auto-descrição nativa da WordPress REST API: um JSON Schema completo por endpoint.

@@ -10,6 +10,12 @@ async function fetchCatalog(request: APIRequestContext): Promise<StoreProduct[]>
   return (await response.json()) as StoreProduct[]
 }
 
+/**
+ * Neste catálogo, todo produto "simple" é sold_individually (e vice-versa:
+ * todo produto sold_individually é "simple"). Usado pelos cenários que
+ * precisam especificamente desse comportamento (quantidade travada em 1).
+ * Para testar quantidade > 1, ver findPurchasableVariation.
+ */
 export async function findPurchasableSimpleProduct(request: APIRequestContext): Promise<StoreProduct> {
   const products = await fetchCatalog(request)
   const product = products.find(
@@ -17,10 +23,7 @@ export async function findPurchasableSimpleProduct(request: APIRequestContext): 
   )
 
   if (!product) {
-    throw new Error(
-      'No purchasable "simple" product found in the catalog. ' +
-        'Variable products need variation selection, which ProductPage does not support yet.'
-    )
+    throw new Error('No purchasable "simple" product found in the catalog')
   }
 
   return product

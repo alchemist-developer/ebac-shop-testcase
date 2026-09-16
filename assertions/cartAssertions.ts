@@ -24,14 +24,20 @@ export async function expectCartItemMatchesProduct(
   )
   expect(unitPriceCents).toBe(Number(product.prices.price))
 
-  const subtotalCents = parseMoneyToCents(
-    await cartPage.productSubtotal.innerText(),
-    currency.decimalSeparator,
-    currency.thousandsSeparator
-  )
-  expect(subtotalCents).toBe(Number(product.prices.price) * quantity)
+  // expect.poll (não uma leitura única): a atualização de quantidade é assíncrona
+  // (AJAX), então o subtotal pode levar um instante para refletir o novo valor.
+  await expect
+    .poll(async () =>
+      parseMoneyToCents(await cartPage.productSubtotal.innerText(), currency.decimalSeparator, currency.thousandsSeparator)
+    )
+    .toBe(Number(product.prices.price) * quantity)
 
-  await expect(cartPage.productQuantity).toContainText(String(quantity))
+  // Não usa .product-quantity (texto renderizado): em itens sold_individually o
+  // valor aparece como texto solto antes do input hidden, mas em itens com
+  // quantidade editável ele só existe como value do <input type="number">
+  // dentro de um stepper (-, input, +), sem texto correspondente no DOM.
+  // O input em si (quantityInput) existe e reflete o valor real nos dois casos.
+  await expect(cartPage.quantityInput).toHaveValue(String(quantity))
 }
 
 export async function expectQuantityControl(cartPage: CartPage, product: StoreProduct): Promise<void> {
